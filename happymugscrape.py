@@ -9,19 +9,11 @@ page = requests.get(URL)
 soup = BeautifulSoup(page.content, "html.parser")
 results = soup.find("table", class_="green-coffee")
 coffees = results.find_all("a")
-df = pd.DataFrame(columns = ['Coffee', 'Arrival', 'Link'])
+
+old_df = pd.read_csv('happy_mug_list.csv')
+updated_df = pd.DataFrame(columns = ['Coffee', 'Link', 'Month', 'Year'])
 
 baseURL = "https://happymugcoffee.com"
-for coffee in coffees:
-    coffee_page = requests.get(baseURL + coffee.get('href'))
-    coffee_soup = BeautifulSoup(coffee_page.content, "html.parser")
-    for elem in coffee_soup('p',text=re.compile(r'Arrival')):
-        print(coffee.get_text() + ' ' + elem.get_text())
-        row = pd.DataFrame([{'Coffee' : coffee.get_text(), 'Arrival' : elem.get_text(), 'Link' : baseURL + coffee.get('href')}])
-        df = pd.concat([df,row], ignore_index = True)
-
-pattern = re.compile(r"(\w\s\w)$")
-arrival = df['Arrival'].str.extract(r'(\w*)\s*(\w*)$')
 
 def month_string_to_number(string):
     m = {
@@ -46,9 +38,37 @@ def month_string_to_number(string):
     except:
         raise ValueError('Not a month')
 
-arrival[0] = arrival.apply(lambda row : month_string_to_number(row[0]), axis = 1)
-arrival = arrival.rename(columns={0: "Month", 1: "Year"})
-final = pd.concat([df, arrival], axis = 1)
-final = final.drop(['Arrival'], axis = 1)
+def find_arrival(soup):
+    arrival_pattern = re.compile(r'(?:A|a)rriv(?:al|ed).+?(\w*)\s*(\w*)$|^(\w*)\W+?(\w*).+?(?:A|a)rrival\W?$')
+    for elem in soup('p'):
+        arrival_search = re.search(arrival_pattern, elem.get_text())
+        if arrival_search:
+            if arrival_search.group(1):
+                month = month_string_to_number(arrival_search.group(1))
+                year = arrival_search.group(2)
+            else:
+                month = month_string_to_number(arrival_search.group(3))
+                year = arrival_search.group(4)
+            return (month, year)
+    return (0, 0)
+
+
+for coffee in coffees:
+    link = baseURL + coffee.get('href')
+    link_loc = old_df['Link']==link
+    if any(link_loc):
+        updated_df = pd.concat([updated_df, old_df[link_loc]], ignore_index = True)
+    else:
+        print('Scraping ' + coffee.get_text())
+        coffee_page = requests.get(link)
+        coffee_soup = BeautifulSoup(coffee_page.content, "html.parser")
+        month, year = find_arrival(coffee_soup)
+        row = pd.DataFrame([{'Coffee' : coffee.get_text(), 'Link' : link, 'Month' : month, 'Year' : year}])
+        updated_df = pd.concat([updated_df,row], ignore_index = True)        
+
 pd.set_option('display.max_colwidth', None)
-final.sort_values(by=['Year', 'Month'], ascending = False)
+updated_df = updated_df.sort_values(by=['Year', 'Month'], ascending = False)
+updated_df.reset_index(drop=True)
+print(updated_df)
+updated_df.to_csv('happy_mug_list.csv', index=False)
+# updated_df.sort_values(by=['Coffee'])
