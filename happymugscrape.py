@@ -67,8 +67,7 @@ for coffee in coffees:
         updated_df = pd.concat([updated_df,row], ignore_index = True)        
 
 pd.set_option('display.max_colwidth', None)
-updated_df = updated_df.sort_values(by=['Year', 'Month'], ascending = False)
-updated_df.reset_index(drop=True)
+updated_df = updated_df.sort_values(by=['Year', 'Month'], ascending = False, ignore_index=True)
 print(updated_df)
 updated_df.to_csv('happy_mug_list.csv', index=False)
 # updated_df.sort_values(by=['Coffee'])
