@@ -1,8 +1,10 @@
+import os
 import requests
 import re
 import pandas as pd
 from bs4 import BeautifulSoup
 
+csv_file_name = 'happy_mug_list.csv'
 URL = "https://happymugcoffee.com/collections/green-coffee"
 page = requests.get(URL)
 
@@ -10,8 +12,10 @@ soup = BeautifulSoup(page.content, "html.parser")
 results = soup.find("table", class_="green-coffee")
 coffees = results.find_all("a")
 
-old_df = pd.read_csv('happy_mug_list.csv')
 updated_df = pd.DataFrame(columns = ['Coffee', 'Link', 'Month', 'Year'])
+old_df = updated_df
+if os.path.exists(csv_file_name):
+    old_df = pd.read_csv(csv_file_name)
 
 baseURL = "https://happymugcoffee.com"
 
@@ -39,9 +43,11 @@ def month_string_to_number(string):
         raise ValueError('Not a month')
 
 def find_arrival(soup):
-    arrival_pattern = re.compile(r'(?:A|a)rriv(?:al|ed).+?(\w*)\s*(\w*)$|^(\w*)\W+?(\w*).+?(?:A|a)rrival\W?$')
+    arrival_pattern = re.compile(r'\b(January|February|March|April|May|June|July|August|September|October|November|December)\s(\d{4})\b')
     for elem in soup('p'):
+        print(elem.get_text())
         arrival_search = re.search(arrival_pattern, elem.get_text())
+        print(arrival_search)
         if arrival_search:
             if arrival_search.group(1):
                 month = month_string_to_number(arrival_search.group(1))
@@ -51,7 +57,6 @@ def find_arrival(soup):
                 year = arrival_search.group(4)
             return (month, year)
     return (0, 0)
-
 
 for coffee in coffees:
     link = baseURL + coffee.get('href')
@@ -67,7 +72,9 @@ for coffee in coffees:
         updated_df = pd.concat([updated_df,row], ignore_index = True)        
 
 pd.set_option('display.max_colwidth', None)
+updated_df['Year'] = pd.to_numeric(updated_df['Year'])
+updated_df['Month'] = pd.to_numeric(updated_df['Month'])
 updated_df = updated_df.sort_values(by=['Year', 'Month'], ascending = False, ignore_index=True)
 print(updated_df)
-updated_df.to_csv('happy_mug_list.csv', index=False)
+updated_df.to_csv(csv_file_name, index=False)
 # updated_df.sort_values(by=['Coffee'])
