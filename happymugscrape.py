@@ -45,9 +45,7 @@ def month_string_to_number(string):
 def find_arrival(soup):
     arrival_pattern = re.compile(r'\b(January|February|March|April|May|June|July|August|September|October|November|December)\s(\d{4})\b')
     for elem in soup('p'):
-        print(elem.get_text())
         arrival_search = re.search(arrival_pattern, elem.get_text())
-        print(arrival_search)
         if arrival_search:
             if arrival_search.group(1):
                 month = month_string_to_number(arrival_search.group(1))
